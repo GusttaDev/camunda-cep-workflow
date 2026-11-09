@@ -1,0 +1,57 @@
+spring:
+  application:
+    name: cep
+  datasource:
+    url: jdbc:h2:file:./data/cepdb
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      # Datas (Instant) gravadas como TIMESTAMP sem fuso, no horario de Brasilia
+      # (ex.: 2026-11-08 21:05:55 em vez de 2026-11-09 00:05:55+00).
+      hibernate:
+        type.preferred_instant_jdbc_type: TIMESTAMP
+        jdbc.time_zone: America/Sao_Paulo
+  h2:
+    console:
+      enabled: true
+
+# A porta 8080 fica com o Camunda (Operate); a aplicacao usa a 8081
+server:
+  port: 8081
+
+camunda:
+  client:
+    mode: self-managed
+    grpc-address: http://localhost:26500
+    rest-address: http://localhost:8080
+    worker:
+      defaults:
+        enabled: on
+        max-retries: 3
+
+# Quanto tempo o endpoint espera o process-cep terminar (withResult)
+cep:
+  processo:
+    timeout: 10s
+  # Rastreio (tabela cep_execucao): execucao nao finalizada e sem movimento ha mais que
+  # limite-parada gera um WARN "Execucao PARADA" no log, verificado a cada verificar-a-cada.
+  execucao:
+    limite-parada: 5m
+    verificar-a-cada: PT1M
+
+viacep:
+  base-url: https://viacep.com.br
+  connect-timeout: 1s
+  read-timeout: 2s
+
+logging:
+  # Durante a execucao de uma caixinha, o RastreioJob coloca rastreioId/etapa no MDC:
+  # todo log daquela etapa sai com o id, facilitando o grep de uma execucao inteira.
+  pattern:
+    correlation: "%replace([%X{rastreioId}|%X{etapa}] ){'^\\[\\|\\] $', ''}"
+  level:
+    com.camunda.cep.workflow: DEBUG
